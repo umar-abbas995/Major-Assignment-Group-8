@@ -1,2 +1,2 @@
 # Major-Assignment-Group-8
-Simple online banking interface 
+Bank Account Handling System
