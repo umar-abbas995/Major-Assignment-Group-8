@@ -1,0 +1,31 @@
+"""
+account.py
+Handles Bank Account operations
+"""
+
+class BankAccount:
+    def __init__(self, account_holder, account_number, initial_balance=0):
+        self.account_holder = account_holder
+        self.account_number = account_number
+        self.balance = initial_balance
+        self.transactions = []
+
+    def deposit(self, amount):
+        if amount > 0:
+            self.balance += amount
+            self.transactions.append(f"Deposited: ${amount}")
+            return True
+        return False
+
+    def withdraw(self, amount):
+        if 0 < amount <= self.balance:
+            self.balance -= amount
+            self.transactions.append(f"Withdrew: ${amount}")
+            return True
+        return False
+
+    def get_balance(self):
+        return self.balance
+
+    def get_transaction_history(self):
+        return self.transactions
