@@ -25,3 +25,4 @@ A Python-based bank account management system with features for account handling
 - Transaction history tracking
 - Account information retrieval
 >>>>>>> 5d9d65f (Updated README.md with Day 1 progress and features)
+
