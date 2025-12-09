@@ -1,31 +1,33 @@
-"""
-account.py
-Handles Bank Account operations
-"""
+from transaction import Transaction
+def deposit(self, amount):
+    """Deposit money into account"""
+    if amount > 0:
+        self.balance += amount
+        # Create transaction record
+        transaction = Transaction(
+            transaction_type=Transaction.DEPOSIT,
+            amount=amount,
+            account_number=self.account_number,
+            description="Cash deposit"
+        )
+        self.transactions.append(transaction)
+        return True, f"Deposited ${amount:.2f} successfully! Transaction ID: {transaction.transaction_id}"
+    return False, "Deposit amount must be positive!"
 
-class BankAccount:
-    def __init__(self, account_holder, account_number, initial_balance=0):
-        self.account_holder = account_holder
-        self.account_number = account_number
-        self.balance = initial_balance
-        self.transactions = []
-
-    def deposit(self, amount):
-        if amount > 0:
-            self.balance += amount
-            self.transactions.append(f"Deposited: ${amount}")
-            return True
-        return False
-
-    def withdraw(self, amount):
-        if 0 < amount <= self.balance:
-            self.balance -= amount
-            self.transactions.append(f"Withdrew: ${amount}")
-            return True
-        return False
-
-    def get_balance(self):
-        return self.balance
-
-    def get_transaction_history(self):
-        return self.transactions
+def withdraw(self, amount):
+    """Withdraw money from account"""
+    if amount <= 0:
+        return False, "Withdrawal amount must be positive!"
+    if amount > self.balance:
+        return False, "Insufficient funds!"
+    
+    self.balance -= amount
+    # Create transaction record
+    transaction = Transaction(
+        transaction_type=Transaction.WITHDRAWAL,
+        amount=amount,
+        account_number=self.account_number,
+        description="Cash withdrawal"
+    )
+    self.transactions.append(transaction)
+    return True, f"Withdrew ${amount:.2f} successfully! Transaction ID: {transaction.transaction_id}"
