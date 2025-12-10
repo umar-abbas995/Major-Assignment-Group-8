@@ -5,7 +5,7 @@ Handles customer information and account management
 
 from datetime import datetime
 from typing import List, Dict, Optional
-
+#it is customer class
 class Customer:
     """Represents a bank customer with personal information"""
     
