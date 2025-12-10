@@ -1,49 +1,77 @@
-"""
-Main entry point for Bank Account System
-Simple CLI interface for testing
-"""
-
+# main.py
 from account import BankAccount
 
 def main():
-    """Main function to run the banking system"""
     print("=" * 50)
-    print("    BANK ACCOUNT HANDLING SYSTEM")
+    print("       BANK ACCOUNT SYSTEM")
     print("=" * 50)
+
+    # Ask user for account creation details
+    name = input("Enter your full name: ")
+    account_number = input("Enter account number: ")
     
-    # Test account creation
-    print("\n[1] Creating a test account...")
-    account1 = BankAccount("John Doe", "ACC001", 1000.00)
-    print(f"Account created for: {account1.account_holder}")
-    print(f"Account Number: {account1.account_number}")
-    print(f"Initial Balance: ${account1.get_balance():.2f}")
-    
-    # Test deposit
-    print("\n[2] Testing deposit...")
-    success, message = account1.deposit(500.00)
-    print(f"Deposit: {message}")
-    print(f"New Balance: ${account1.get_balance():.2f}")
-    
-    # Test withdrawal
-    print("\n[3] Testing withdrawal...")
-    success, message = account1.withdraw(200.00)
-    print(f"Withdrawal: {message}")
-    print(f"New Balance: ${account1.get_balance():.2f}")
-    
-    # Show transaction history
-    print("\n[4] Transaction History:")
-    for transaction in account1.get_transaction_history():
-        print(f"  - {transaction}")
-    
-    # Show account info
-    print("\n[5] Account Summary:")
-    info = account1.get_account_info()
-    for key, value in info.items():
-        print(f"  {key.replace('_', ' ').title()}: {value}")
-    
-    print("\n" + "=" * 50)
-    print("       DAY 1 - BASIC STRUCTURE COMPLETE")
-    print("=" * 50)
+    while True:
+        try:
+            initial_balance = float(input("Enter initial balance: "))
+            if initial_balance < 0:
+                print("Balance cannot be negative.")
+                continue
+            break
+        except ValueError:
+            print("Please enter a valid number.")
+
+    account = BankAccount(name, account_number, initial_balance)
+    print(f"\nAccount created for {account.account_holder} with balance ${account.get_balance():.2f}\n")
+
+    # Main loop
+    while True:
+        print("\nChoose an option:")
+        print("1. Deposit")
+        print("2. Withdraw")
+        print("3. Show Balance")
+        print("4. Transaction History")
+        print("5. Account Summary")
+        print("6. Exit")
+
+        choice = input("Enter your choice (1-6): ")
+
+        if choice == "1":
+            try:
+                amount = float(input("Enter amount to deposit: "))
+                success, message = account.deposit(amount)
+                print(message)
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+
+        elif choice == "2":
+            try:
+                amount = float(input("Enter amount to withdraw: "))
+                success, message = account.withdraw(amount)
+                print(message)
+            except ValueError:
+                print("Invalid input. Please enter a number.")
+
+        elif choice == "3":
+            print(f"Current Balance: ${account.get_balance():.2f}")
+
+        elif choice == "4":
+            print("Transaction History:")
+            for t in account.get_transaction_history():
+                print(f"  - {t}")
+
+        elif choice == "5":
+            info = account.get_account_info()
+            print("Account Summary:")
+            for key, value in info.items():
+                if key != "transactions":
+                    print(f"  {key.title()}: {value}")
+
+        elif choice == "6":
+            print("Exiting... Thank you for using the Bank Account System!")
+            break
+
+        else:
+            print("Invalid choice. Please select 1-6.")
 
 if __name__ == "__main__":
     main()
