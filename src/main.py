@@ -85,7 +85,7 @@ class BankGUI:
             acc_num = self.acc_entry.get()
             balance_str = self.balance_entry.get()
             
-            # Validate inputs - FIXED: Use 3 return values
+            # Validate inputs
             valid_name, name_msg, cleaned_name = Validation.validate_name(name)
             if not valid_name:
                 messagebox.showerror("Error", name_msg)
@@ -109,14 +109,14 @@ class BankGUI:
                 messagebox.showerror("Error", balance_msg)
                 return
             
-            # Validate phone (optional, as per your validation requires 10 digits)
+            # Validate phone (optional)
             valid_phone, phone_msg, cleaned_phone = Validation.validate_phone(phone)
             if not valid_phone:
-                # Show warning but continue (phone validation is strict)
                 response = messagebox.askyesno("Phone Warning", 
                     f"{phone_msg}\nDo you want to continue anyway?")
                 if not response:
                     return
+                phone = cleaned_phone
             
             # Create customer
             customer_id = f"CUST{len(self.customer_manager.customers)+1:03d}"
@@ -128,7 +128,7 @@ class BankGUI:
             # Add to customer manager
             self.customer_manager.add_customer(customer)
             
-            # Create bank account
+            # Create bank account AND SET AS CURRENT
             self.current_account = BankAccount(name, acc_num, balance)
             self.current_customer = customer
             
@@ -138,6 +138,7 @@ class BankGUI:
                 f"Account: {acc_num}\n"
                 f"Balance: ${balance:.2f}")
             
+            # THIS LINE WAS MISSING - Show main menu after creation
             self.show_main_menu()
             
         except Exception as e:
@@ -168,20 +169,34 @@ class BankGUI:
         tk.Button(button_frame, text="Back", command=self.show_welcome_screen, width=15).pack(side=tk.LEFT, padx=5)
     
     def login(self):
-        acc_num = self.login_acc_entry.get()
-        name = self.login_name_entry.get()
+        acc_num = self.login_acc_entry.get().strip()
+        name = self.login_name_entry.get().strip()
+        
+        if not acc_num or not name:
+            messagebox.showerror("Error", "Please enter both account number and name")
+            return
+        
+        # Validate account number format first
+        valid_acc, acc_msg, cleaned_acc = Validation.validate_account_number(acc_num)
+        if not valid_acc:
+            messagebox.showerror("Error", acc_msg)
+            return
+        acc_num = cleaned_acc
         
         # Find customer by account
         customer = self.customer_manager.find_customer_by_account(acc_num)
         
-        if customer and customer.name == name:
+        if customer and customer.name.lower() == name.lower():
             # Create account object for logged in customer
             self.current_customer = customer
-            self.current_account = BankAccount(customer.name, acc_num, 1000.00)  # Default balance
+            self.current_account = BankAccount(customer.name, acc_num, 1000.00)
             messagebox.showinfo("Success", f"Welcome back, {customer.name}!")
             self.show_main_menu()
         else:
-            messagebox.showerror("Error", "Invalid account number or name")
+            messagebox.showerror("Error", "Invalid account number or name\n\n"
+                                 "Note: For testing, create an account first, then use:\n"
+                                 f"Account: {acc_num if 'ACC' in acc_num else 'ACC001'}\n"
+                                 f"Name: {name}")
     
     # ---------------- MAIN MENU ----------------
     def show_main_menu(self):
