@@ -1,7 +1,7 @@
 # transaction.py
 import uuid
 from datetime import datetime
-
+# this is the class transaction function
 class Transaction:
     DEPOSIT = "Deposit"
     WITHDRAWAL = "Withdrawal"
