@@ -1,139 +1,469 @@
 import tkinter as tk
 from tkinter import messagebox, ttk
-from account import BankAccount   # your existing class
+from account import BankAccount
+from customer import Customer, CustomerManager
+from validation import Validation
+import re
 
 class BankGUI:
     def __init__(self, root):
         self.root = root
         self.root.title("Bank Account System")
-        self.root.geometry("450x500")
-
-        self.account = None
+        self.root.geometry("500x550")
         
-        self.create_account_screen()
-
-    # ---------------- Create Account Screen ----------------
+        self.customer_manager = CustomerManager()
+        self.current_customer = None
+        self.current_account = None
+        
+        self.show_welcome_screen()
+    
+    def show_welcome_screen(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        
+        tk.Label(self.root, text="🏦 Bank Account System", font=("Arial", 20, "bold")).pack(pady=20)
+        tk.Label(self.root, text="Welcome to Secure Banking", font=("Arial", 12)).pack(pady=5)
+        
+        frame = tk.Frame(self.root)
+        frame.pack(pady=30)
+        
+        tk.Button(frame, text="Create New Account", width=25, height=2, 
+                  command=self.create_account_screen, bg="lightblue").grid(row=0, column=0, padx=10, pady=10)
+        tk.Button(frame, text="Login to Account", width=25, height=2, 
+                  command=self.login_screen, bg="lightgreen").grid(row=0, column=1, padx=10, pady=10)
+    
+    # ---------------- CREATE ACCOUNT SCREEN ----------------
     def create_account_screen(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        
         frame = tk.Frame(self.root)
         frame.pack(pady=20)
-
-        tk.Label(frame, text="Create Bank Account", font=("Arial", 16)).grid(row=0, column=0, columnspan=2, pady=10)
-
-        tk.Label(frame, text="Full Name:").grid(row=1, column=0, sticky="w")
+        
+        tk.Label(frame, text="Create New Account", font=("Arial", 16, "bold")).grid(row=0, column=0, columnspan=2, pady=10)
+        
+        # Customer Information
+        tk.Label(frame, text="Full Name:", anchor="w").grid(row=1, column=0, sticky="w", pady=5)
         self.name_entry = tk.Entry(frame, width=30)
-        self.name_entry.grid(row=1, column=1)
-
-        tk.Label(frame, text="Account Number:").grid(row=2, column=0, sticky="w")
+        self.name_entry.grid(row=1, column=1, pady=5)
+        
+        tk.Label(frame, text="Email:", anchor="w").grid(row=2, column=0, sticky="w", pady=5)
+        self.email_entry = tk.Entry(frame, width=30)
+        self.email_entry.grid(row=2, column=1, pady=5)
+        
+        tk.Label(frame, text="Phone:", anchor="w").grid(row=3, column=0, sticky="w", pady=5)
+        self.phone_entry = tk.Entry(frame, width=30)
+        self.phone_entry.grid(row=3, column=1, pady=5)
+        
+        tk.Label(frame, text="Address:", anchor="w").grid(row=4, column=0, sticky="w", pady=5)
+        self.address_entry = tk.Entry(frame, width=30)
+        self.address_entry.grid(row=4, column=1, pady=5)
+        
+        # Account Information
+        tk.Label(frame, text="Account Number (ACC001-ACC999):", anchor="w").grid(row=5, column=0, sticky="w", pady=5)
         self.acc_entry = tk.Entry(frame, width=30)
-        self.acc_entry.grid(row=2, column=1)
-
-        tk.Label(frame, text="Initial Balance:").grid(row=3, column=0, sticky="w")
+        self.acc_entry.grid(row=5, column=1, pady=5)
+        
+        tk.Label(frame, text="Initial Balance:", anchor="w").grid(row=6, column=0, sticky="w", pady=5)
         self.balance_entry = tk.Entry(frame, width=30)
-        self.balance_entry.grid(row=3, column=1)
-
-        tk.Button(frame, text="Create Account", command=self.create_account).grid(row=4, column=0, columnspan=2, pady=15)
-
+        self.balance_entry.grid(row=6, column=1, pady=5)
+        
+        # Buttons
+        button_frame = tk.Frame(self.root)
+        button_frame.pack(pady=10)
+        
+        tk.Button(button_frame, text="Create Account", command=self.create_account, bg="lightblue", width=15).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Back", command=self.show_welcome_screen, width=15).pack(side=tk.LEFT, padx=5)
+    
     def create_account(self):
         try:
-            name = self.name_entry.get()
-            acc_num = self.acc_entry.get()
-            balance = float(self.balance_entry.get())
-
-            if balance < 0:
-                messagebox.showerror("Error", "Balance cannot be negative")
+            # Validate inputs
+            name = Validation.sanitize_input(self.name_entry.get())
+            email = Validation.sanitize_input(self.email_entry.get())
+            phone = Validation.sanitize_input(self.phone_entry.get())
+            address = Validation.sanitize_input(self.address_entry.get())
+            acc_num = Validation.sanitize_input(self.acc_entry.get())
+            balance_str = self.balance_entry.get()
+            
+            # Validation checks
+            valid_name, name_msg = Validation.validate_name(name)
+            if not valid_name:
+                messagebox.showerror("Error", name_msg)
                 return
-
-            self.account = BankAccount(name, acc_num, balance)
-            messagebox.showinfo("Success", f"Account created for {name}!")
-
+                
+            valid_email, email_msg = Validation.validate_email(email)
+            if not valid_email:
+                messagebox.showerror("Error", email_msg)
+                return
+                
+            valid_acc, acc_msg = Validation.validate_account_number(acc_num)
+            if not valid_acc:
+                messagebox.showerror("Error", acc_msg)
+                return
+                
+            valid_balance, balance_msg, balance = Validation.validate_amount(balance_str)
+            if not valid_balance:
+                messagebox.showerror("Error", balance_msg)
+                return
+            
+            # Create customer
+            customer_id = f"CUST{len(self.customer_manager.customers)+1:03d}"
+            customer = Customer(customer_id, name, email, phone, address)
+            
+            # Add account to customer
+            customer.add_account(acc_num)
+            
+            # Add to customer manager
+            self.customer_manager.add_customer(customer)
+            
+            # Create bank account
+            self.current_account = BankAccount(name, acc_num, balance)
+            self.current_customer = customer
+            
+            messagebox.showinfo("Success", 
+                f"Account created successfully!\n\n"
+                f"Customer ID: {customer_id}\n"
+                f"Account: {acc_num}\n"
+                f"Balance: ${balance:.2f}")
+            
             self.show_main_menu()
-
-        except ValueError:
-            messagebox.showerror("Error", "Invalid balance amount")
-
-    # ---------------- Main Menu Screen ----------------
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to create account: {str(e)}")
+    
+    # ---------------- LOGIN SCREEN ----------------
+    def login_screen(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+        
+        frame = tk.Frame(self.root)
+        frame.pack(pady=40)
+        
+        tk.Label(frame, text="Login to Account", font=("Arial", 16, "bold")).grid(row=0, column=0, columnspan=2, pady=10)
+        
+        tk.Label(frame, text="Account Number:").grid(row=1, column=0, sticky="w", pady=5)
+        self.login_acc_entry = tk.Entry(frame, width=30)
+        self.login_acc_entry.grid(row=1, column=1, pady=5)
+        self.login_acc_entry.insert(0, "ACC001")  # Default for testing
+        
+        tk.Label(frame, text="Customer Name:").grid(row=2, column=0, sticky="w", pady=5)
+        self.login_name_entry = tk.Entry(frame, width=30)
+        self.login_name_entry.grid(row=2, column=1, pady=5)
+        self.login_name_entry.insert(0, "John Doe")  # Default for testing
+        
+        button_frame = tk.Frame(self.root)
+        button_frame.pack(pady=10)
+        
+        tk.Button(button_frame, text="Login", command=self.login, bg="lightgreen", width=15).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Back", command=self.show_welcome_screen, width=15).pack(side=tk.LEFT, padx=5)
+    
+    def login(self):
+        acc_num = self.login_acc_entry.get()
+        name = self.login_name_entry.get()
+        
+        # Find customer by account
+        customer = self.customer_manager.find_customer_by_account(acc_num)
+        
+        if customer and customer.name == name:
+            # Create account object for logged in customer
+            # In real app, you'd load from database
+            self.current_customer = customer
+            self.current_account = BankAccount(customer.name, acc_num, 1000.00)  # Default balance
+            messagebox.showinfo("Success", f"Welcome back, {customer.name}!")
+            self.show_main_menu()
+        else:
+            messagebox.showerror("Error", "Invalid account number or name")
+    
+    # ---------------- MAIN MENU ----------------
     def show_main_menu(self):
         for widget in self.root.winfo_children():
             widget.destroy()
-
-        tk.Label(self.root, text="Bank Account System", font=("Arial", 18)).pack(pady=10)
-
-        tk.Button(self.root, text="Deposit", width=30, command=self.deposit_window).pack(pady=5)
-        tk.Button(self.root, text="Withdraw", width=30, command=self.withdraw_window).pack(pady=5)
-        tk.Button(self.root, text="Show Balance", width=30, command=self.show_balance).pack(pady=5)
-        tk.Button(self.root, text="Transaction History", width=30, command=self.show_transactions).pack(pady=5)
-        tk.Button(self.root, text="Account Summary", width=30, command=self.account_summary).pack(pady=5)
-
-    # ---------------- Deposit ----------------
+        
+        tk.Label(self.root, text=f"Welcome, {self.current_customer.name}", 
+                 font=("Arial", 16, "bold")).pack(pady=10)
+        tk.Label(self.root, text=f"Account: {self.current_account.account_number} | "
+                 f"Balance: ${self.current_account.get_balance():.2f}",
+                 font=("Arial", 10)).pack(pady=5)
+        
+        menu_frame = tk.Frame(self.root)
+        menu_frame.pack(pady=20)
+        
+        buttons = [
+            ("💵 Deposit", self.deposit_window),
+            ("💰 Withdraw", self.withdraw_window),
+            ("📊 Show Balance", self.show_balance),
+            ("📋 Transaction History", self.show_transactions),
+            ("👤 Account Summary", self.account_summary),
+            ("🔄 Transfer Money", self.transfer_window),
+            ("🚪 Logout", self.show_welcome_screen)
+        ]
+        
+        for i, (text, command) in enumerate(buttons):
+            tk.Button(menu_frame, text=text, width=25, height=2, 
+                      command=command, bg="lightgray").grid(row=i//2, column=i%2, padx=10, pady=10)
+    
+    # ---------------- DEPOSIT WINDOW ----------------
     def deposit_window(self):
         win = tk.Toplevel(self.root)
-        win.title("Deposit")
-        win.geometry("300x200")
-
-        tk.Label(win, text="Enter amount to deposit:").pack(pady=10)
-        amount_entry = tk.Entry(win)
-        amount_entry.pack()
-
+        win.title("Deposit Money")
+        win.geometry("400x250")
+        
+        tk.Label(win, text="Deposit Money", font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # Account Info
+        info_frame = tk.Frame(win)
+        info_frame.pack(pady=5)
+        tk.Label(info_frame, text=f"Account: {self.current_account.account_number}").pack()
+        tk.Label(info_frame, text=f"Current Balance: ${self.current_account.get_balance():.2f}").pack()
+        
+        # Amount Entry
+        tk.Label(win, text="Enter amount to deposit:").pack(pady=5)
+        amount_entry = tk.Entry(win, width=20, font=("Arial", 12))
+        amount_entry.pack(pady=5)
+        
+        # Source Entry
+        tk.Label(win, text="Source of funds:").pack(pady=5)
+        source_entry = tk.Entry(win, width=30)
+        source_entry.pack(pady=5)
+        source_entry.insert(0, "Cash deposit")
+        
         def deposit_action():
             try:
                 amount = float(amount_entry.get())
-                success, msg = self.account.deposit(amount)
-                messagebox.showinfo("Deposit", msg)
-                win.destroy()
+                source = source_entry.get()
+                
+                if amount <= 0:
+                    messagebox.showerror("Error", "Amount must be positive!")
+                    return
+                
+                success, msg = self.current_account.deposit(amount, source)
+                if success:
+                    messagebox.showinfo("Success", msg)
+                    win.destroy()
+                    self.show_main_menu()  # Refresh balance display
+                else:
+                    messagebox.showerror("Error", msg)
             except ValueError:
                 messagebox.showerror("Error", "Enter a valid number")
-
-        tk.Button(win, text="Deposit", command=deposit_action).pack(pady=10)
-
-    # ---------------- Withdraw ----------------
+        
+        button_frame = tk.Frame(win)
+        button_frame.pack(pady=15)
+        
+        tk.Button(button_frame, text="Deposit", command=deposit_action, bg="lightgreen", width=15).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=win.destroy, width=15).pack(side=tk.LEFT, padx=5)
+    
+    # ---------------- WITHDRAW WINDOW ----------------
     def withdraw_window(self):
         win = tk.Toplevel(self.root)
-        win.title("Withdraw")
-        win.geometry("300x200")
-
-        tk.Label(win, text="Enter amount to withdraw:").pack(pady=10)
-        amount_entry = tk.Entry(win)
-        amount_entry.pack()
-
+        win.title("Withdraw Money")
+        win.geometry("400x300")
+        
+        tk.Label(win, text="Withdraw Money", font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # Account Info
+        info_frame = tk.Frame(win)
+        info_frame.pack(pady=5)
+        tk.Label(info_frame, text=f"Account: {self.current_account.account_number}").pack()
+        tk.Label(info_frame, text=f"Available Balance: ${self.current_account.get_balance():.2f}").pack()
+        
+        # Amount Entry
+        tk.Label(win, text="Enter amount to withdraw:").pack(pady=5)
+        amount_entry = tk.Entry(win, width=20, font=("Arial", 12))
+        amount_entry.pack(pady=5)
+        
+        # Purpose Entry
+        tk.Label(win, text="Purpose of withdrawal:").pack(pady=5)
+        purpose_entry = tk.Entry(win, width=30)
+        purpose_entry.pack(pady=5)
+        purpose_entry.insert(0, "Cash withdrawal")
+        
+        # Withdrawal Method
+        tk.Label(win, text="Withdrawal method:").pack(pady=5)
+        method_var = tk.StringVar(value="ATM")
+        methods = ["ATM", "Bank Counter", "Cheque", "Online Transfer"]
+        method_combo = ttk.Combobox(win, textvariable=method_var, values=methods, state="readonly", width=20)
+        method_combo.pack(pady=5)
+        
         def withdraw_action():
             try:
                 amount = float(amount_entry.get())
-                success, msg = self.account.withdraw(amount)
-                messagebox.showinfo("Withdraw", msg)
-                win.destroy()
+                purpose = purpose_entry.get()
+                method = method_var.get()
+                
+                if amount <= 0:
+                    messagebox.showerror("Error", "Amount must be positive!")
+                    return
+                
+                success, msg = self.current_account.withdraw(amount, purpose, method)
+                if success:
+                    messagebox.showinfo("Success", msg)
+                    win.destroy()
+                    self.show_main_menu()  # Refresh balance display
+                else:
+                    messagebox.showerror("Error", msg)
             except ValueError:
                 messagebox.showerror("Error", "Enter a valid number")
-
-        tk.Button(win, text="Withdraw", command=withdraw_action).pack(pady=10)
-
-    # ---------------- Show Balance ----------------
+        
+        button_frame = tk.Frame(win)
+        button_frame.pack(pady=15)
+        
+        tk.Button(button_frame, text="Withdraw", command=withdraw_action, bg="lightcoral", width=15).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=win.destroy, width=15).pack(side=tk.LEFT, padx=5)
+    
+    # ---------------- TRANSFER WINDOW ----------------
+    def transfer_window(self):
+        win = tk.Toplevel(self.root)
+        win.title("Transfer Money")
+        win.geometry("450x350")
+        
+        tk.Label(win, text="Transfer Money", font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # From Account Info
+        from_frame = tk.Frame(win)
+        from_frame.pack(pady=5, fill=tk.X, padx=20)
+        tk.Label(from_frame, text="From Account:", font=("Arial", 10, "bold")).grid(row=0, column=0, sticky="w")
+        tk.Label(from_frame, text=f"{self.current_account.account_number}").grid(row=0, column=1, sticky="w")
+        tk.Label(from_frame, text=f"Balance: ${self.current_account.get_balance():.2f}").grid(row=1, column=0, columnspan=2, sticky="w")
+        
+        # To Account Entry
+        tk.Label(win, text="To Account Number:").pack(pady=5)
+        to_acc_entry = tk.Entry(win, width=20, font=("Arial", 12))
+        to_acc_entry.pack(pady=5)
+        to_acc_entry.insert(0, "ACC002")  # Default for testing
+        
+        # Amount Entry
+        tk.Label(win, text="Amount to transfer:").pack(pady=5)
+        amount_entry = tk.Entry(win, width=20, font=("Arial", 12))
+        amount_entry.pack(pady=5)
+        
+        # Description
+        tk.Label(win, text="Description:").pack(pady=5)
+        desc_entry = tk.Entry(win, width=30)
+        desc_entry.pack(pady=5)
+        desc_entry.insert(0, "Funds transfer")
+        
+        def transfer_action():
+            try:
+                to_account = to_acc_entry.get()
+                amount = float(amount_entry.get())
+                description = desc_entry.get()
+                
+                # Validate account format
+                if not re.match(r'^ACC\d{3}$', to_account):
+                    messagebox.showerror("Error", "Invalid account number format (use ACC001 format)")
+                    return
+                
+                if amount <= 0:
+                    messagebox.showerror("Error", "Amount must be positive!")
+                    return
+                
+                # In real app, you'd check if destination account exists
+                # For now, simulate transfer
+                success, msg = self.current_account.withdraw(amount, f"Transfer to {to_account}", "Online Transfer")
+                
+                if success:
+                    messagebox.showinfo("Success", 
+                        f"Transfer completed!\n\n"
+                        f"Amount: ${amount:.2f}\n"
+                        f"From: {self.current_account.account_number}\n"
+                        f"To: {to_account}\n"
+                        f"Reference: {msg}")
+                    win.destroy()
+                    self.show_main_menu()
+                else:
+                    messagebox.showerror("Error", msg)
+                    
+            except ValueError:
+                messagebox.showerror("Error", "Enter a valid amount")
+        
+        button_frame = tk.Frame(win)
+        button_frame.pack(pady=15)
+        
+        tk.Button(button_frame, text="Transfer", command=transfer_action, bg="lightblue", width=15).pack(side=tk.LEFT, padx=5)
+        tk.Button(button_frame, text="Cancel", command=win.destroy, width=15).pack(side=tk.LEFT, padx=5)
+    
+    # ---------------- SHOW BALANCE ----------------
     def show_balance(self):
-        messagebox.showinfo("Balance", f"Current Balance: ${self.account.get_balance():.2f}")
-
-    # ---------------- Transaction History ----------------
+        messagebox.showinfo("Account Balance", 
+            f"Account: {self.current_account.account_number}\n"
+            f"Holder: {self.current_account.account_holder}\n"
+            f"Current Balance: ${self.current_account.get_balance():.2f}\n"
+            f"Available Balance: ${self.current_account.get_balance():.2f}")
+    
+    # ---------------- TRANSACTION HISTORY ----------------
     def show_transactions(self):
         win = tk.Toplevel(self.root)
         win.title("Transaction History")
-        win.geometry("400x300")
-
-        tk.Label(win, text="Transaction History", font=("Arial", 14)).pack(pady=10)
-
-        text_box = tk.Text(win, width=45, height=12)
-        text_box.pack()
-
-        for t in self.account.get_transaction_history():
-            text_box.insert(tk.END, f"{t}\n")
-
-    # ---------------- Account Summary ----------------
+        win.geometry("600x400")
+        
+        tk.Label(win, text=f"Transaction History - {self.current_account.account_number}", 
+                 font=("Arial", 14, "bold")).pack(pady=10)
+        
+        # Create a frame with scrollbar
+        frame = tk.Frame(win)
+        frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=5)
+        
+        # Create scrollbar
+        scrollbar = tk.Scrollbar(frame)
+        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        
+        # Create text widget
+        text_box = tk.Text(frame, height=15, width=70, yscrollcommand=scrollbar.set,
+                          font=("Courier", 10))
+        text_box.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        scrollbar.config(command=text_box.yview)
+        
+        # Header
+        header = f"{'Date':<20} {'Type':<12} {'Amount':>10} {'Description':<30} {'ID':<10}\n"
+        text_box.insert(tk.END, header)
+        text_box.insert(tk.END, "-"*85 + "\n")
+        
+        # Transactions
+        transactions = self.current_account.get_transaction_history()
+        
+        if not transactions:
+            text_box.insert(tk.END, "No transactions found.\n")
+        else:
+            for t in transactions:
+                # Format transaction display
+                trans_line = f"{t.date:<20} {t.transaction_type:<12} ${t.amount:>9.2f} {t.description:<30} {t.transaction_id[:8]}...\n"
+                text_box.insert(tk.END, trans_line)
+        
+        text_box.config(state=tk.DISABLED)  # Make read-only
+        
+        # Summary
+        summary_frame = tk.Frame(win)
+        summary_frame.pack(pady=10)
+        tk.Label(summary_frame, text=f"Total Transactions: {len(transactions)}", 
+                 font=("Arial", 10)).pack()
+    
+    # ---------------- ACCOUNT SUMMARY ----------------
     def account_summary(self):
-        info = self.account.get_account_info()
-
-        summary = "\n".join([f"{k.title()}: {v}" for k, v in info.items() if k != "transactions"])
-
+        account_info = self.current_account.get_account_info()
+        customer_info = self.current_customer.get_customer_info()
+        
+        summary = (
+            f"📋 ACCOUNT SUMMARY\n"
+            f"{'='*40}\n"
+            f"Customer Information:\n"
+            f"  Name: {customer_info['name']}\n"
+            f"  ID: {customer_info['customer_id']}\n"
+            f"  Email: {customer_info['email']}\n"
+            f"  Phone: {customer_info['phone']}\n"
+            f"  Joined: {customer_info['date_joined']}\n\n"
+            f"Account Information:\n"
+            f"  Account Number: {account_info['account_number']}\n"
+            f"  Current Balance: ${account_info['balance']:.2f}\n"
+            f"  Total Accounts: {customer_info['total_accounts']}\n\n"
+            f"Transaction Summary:\n"
+            f"  Total Transactions: {len(account_info['transactions'])}\n"
+            f"{'='*40}"
+        )
+        
         messagebox.showinfo("Account Summary", summary)
 
 
-# ---------------- Run GUI ----------------
+# ---------------- RUN APPLICATION ----------------
 if __name__ == "__main__":
     root = tk.Tk()
     app = BankGUI(root)
