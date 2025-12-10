@@ -77,34 +77,46 @@ class BankGUI:
     
     def create_account(self):
         try:
-            # Validate inputs
-            name = Validation.sanitize_input(self.name_entry.get())
-            email = Validation.sanitize_input(self.email_entry.get())
-            phone = Validation.sanitize_input(self.phone_entry.get())
-            address = Validation.sanitize_input(self.address_entry.get())
-            acc_num = Validation.sanitize_input(self.acc_entry.get())
+            # Get inputs
+            name = self.name_entry.get()
+            email = self.email_entry.get()
+            phone = self.phone_entry.get()
+            address = self.address_entry.get()
+            acc_num = self.acc_entry.get()
             balance_str = self.balance_entry.get()
             
-            # Validation checks
-            valid_name, name_msg = Validation.validate_name(name)
+            # Validate inputs - FIXED: Use 3 return values
+            valid_name, name_msg, cleaned_name = Validation.validate_name(name)
             if not valid_name:
                 messagebox.showerror("Error", name_msg)
                 return
+            name = cleaned_name
                 
-            valid_email, email_msg = Validation.validate_email(email)
+            valid_email, email_msg, cleaned_email = Validation.validate_email(email)
             if not valid_email:
                 messagebox.showerror("Error", email_msg)
                 return
+            email = cleaned_email
                 
-            valid_acc, acc_msg = Validation.validate_account_number(acc_num)
+            valid_acc, acc_msg, cleaned_acc = Validation.validate_account_number(acc_num)
             if not valid_acc:
                 messagebox.showerror("Error", acc_msg)
                 return
+            acc_num = cleaned_acc
                 
             valid_balance, balance_msg, balance = Validation.validate_amount(balance_str)
             if not valid_balance:
                 messagebox.showerror("Error", balance_msg)
                 return
+            
+            # Validate phone (optional, as per your validation requires 10 digits)
+            valid_phone, phone_msg, cleaned_phone = Validation.validate_phone(phone)
+            if not valid_phone:
+                # Show warning but continue (phone validation is strict)
+                response = messagebox.askyesno("Phone Warning", 
+                    f"{phone_msg}\nDo you want to continue anyway?")
+                if not response:
+                    return
             
             # Create customer
             customer_id = f"CUST{len(self.customer_manager.customers)+1:03d}"
@@ -144,12 +156,10 @@ class BankGUI:
         tk.Label(frame, text="Account Number:").grid(row=1, column=0, sticky="w", pady=5)
         self.login_acc_entry = tk.Entry(frame, width=30)
         self.login_acc_entry.grid(row=1, column=1, pady=5)
-        self.login_acc_entry.insert(0, "ACC001")  # Default for testing
         
         tk.Label(frame, text="Customer Name:").grid(row=2, column=0, sticky="w", pady=5)
         self.login_name_entry = tk.Entry(frame, width=30)
         self.login_name_entry.grid(row=2, column=1, pady=5)
-        self.login_name_entry.insert(0, "John Doe")  # Default for testing
         
         button_frame = tk.Frame(self.root)
         button_frame.pack(pady=10)
@@ -166,7 +176,6 @@ class BankGUI:
         
         if customer and customer.name == name:
             # Create account object for logged in customer
-            # In real app, you'd load from database
             self.current_customer = customer
             self.current_account = BankAccount(customer.name, acc_num, 1000.00)  # Default balance
             messagebox.showinfo("Success", f"Welcome back, {customer.name}!")
@@ -194,7 +203,6 @@ class BankGUI:
             ("📊 Show Balance", self.show_balance),
             ("📋 Transaction History", self.show_transactions),
             ("👤 Account Summary", self.account_summary),
-            ("🔄 Transfer Money", self.transfer_window),
             ("🚪 Logout", self.show_welcome_screen)
         ]
         
@@ -206,7 +214,7 @@ class BankGUI:
     def deposit_window(self):
         win = tk.Toplevel(self.root)
         win.title("Deposit Money")
-        win.geometry("400x250")
+        win.geometry("400x200")
         
         tk.Label(win, text="Deposit Money", font=("Arial", 14, "bold")).pack(pady=10)
         
@@ -214,29 +222,21 @@ class BankGUI:
         info_frame = tk.Frame(win)
         info_frame.pack(pady=5)
         tk.Label(info_frame, text=f"Account: {self.current_account.account_number}").pack()
-        tk.Label(info_frame, text=f"Current Balance: ${self.current_account.get_balance():.2f}").pack()
         
         # Amount Entry
         tk.Label(win, text="Enter amount to deposit:").pack(pady=5)
         amount_entry = tk.Entry(win, width=20, font=("Arial", 12))
         amount_entry.pack(pady=5)
         
-        # Source Entry
-        tk.Label(win, text="Source of funds:").pack(pady=5)
-        source_entry = tk.Entry(win, width=30)
-        source_entry.pack(pady=5)
-        source_entry.insert(0, "Cash deposit")
-        
         def deposit_action():
             try:
                 amount = float(amount_entry.get())
-                source = source_entry.get()
                 
                 if amount <= 0:
                     messagebox.showerror("Error", "Amount must be positive!")
                     return
                 
-                success, msg = self.current_account.deposit(amount, source)
+                success, msg = self.current_account.deposit(amount)
                 if success:
                     messagebox.showinfo("Success", msg)
                     win.destroy()
@@ -256,7 +256,7 @@ class BankGUI:
     def withdraw_window(self):
         win = tk.Toplevel(self.root)
         win.title("Withdraw Money")
-        win.geometry("400x300")
+        win.geometry("400x200")
         
         tk.Label(win, text="Withdraw Money", font=("Arial", 14, "bold")).pack(pady=10)
         
@@ -264,37 +264,22 @@ class BankGUI:
         info_frame = tk.Frame(win)
         info_frame.pack(pady=5)
         tk.Label(info_frame, text=f"Account: {self.current_account.account_number}").pack()
-        tk.Label(info_frame, text=f"Available Balance: ${self.current_account.get_balance():.2f}").pack()
+        tk.Label(info_frame, text=f"Available: ${self.current_account.get_balance():.2f}").pack()
         
         # Amount Entry
         tk.Label(win, text="Enter amount to withdraw:").pack(pady=5)
         amount_entry = tk.Entry(win, width=20, font=("Arial", 12))
         amount_entry.pack(pady=5)
         
-        # Purpose Entry
-        tk.Label(win, text="Purpose of withdrawal:").pack(pady=5)
-        purpose_entry = tk.Entry(win, width=30)
-        purpose_entry.pack(pady=5)
-        purpose_entry.insert(0, "Cash withdrawal")
-        
-        # Withdrawal Method
-        tk.Label(win, text="Withdrawal method:").pack(pady=5)
-        method_var = tk.StringVar(value="ATM")
-        methods = ["ATM", "Bank Counter", "Cheque", "Online Transfer"]
-        method_combo = ttk.Combobox(win, textvariable=method_var, values=methods, state="readonly", width=20)
-        method_combo.pack(pady=5)
-        
         def withdraw_action():
             try:
                 amount = float(amount_entry.get())
-                purpose = purpose_entry.get()
-                method = method_var.get()
                 
                 if amount <= 0:
                     messagebox.showerror("Error", "Amount must be positive!")
                     return
                 
-                success, msg = self.current_account.withdraw(amount, purpose, method)
+                success, msg = self.current_account.withdraw(amount)
                 if success:
                     messagebox.showinfo("Success", msg)
                     win.destroy()
@@ -310,85 +295,12 @@ class BankGUI:
         tk.Button(button_frame, text="Withdraw", command=withdraw_action, bg="lightcoral", width=15).pack(side=tk.LEFT, padx=5)
         tk.Button(button_frame, text="Cancel", command=win.destroy, width=15).pack(side=tk.LEFT, padx=5)
     
-    # ---------------- TRANSFER WINDOW ----------------
-    def transfer_window(self):
-        win = tk.Toplevel(self.root)
-        win.title("Transfer Money")
-        win.geometry("450x350")
-        
-        tk.Label(win, text="Transfer Money", font=("Arial", 14, "bold")).pack(pady=10)
-        
-        # From Account Info
-        from_frame = tk.Frame(win)
-        from_frame.pack(pady=5, fill=tk.X, padx=20)
-        tk.Label(from_frame, text="From Account:", font=("Arial", 10, "bold")).grid(row=0, column=0, sticky="w")
-        tk.Label(from_frame, text=f"{self.current_account.account_number}").grid(row=0, column=1, sticky="w")
-        tk.Label(from_frame, text=f"Balance: ${self.current_account.get_balance():.2f}").grid(row=1, column=0, columnspan=2, sticky="w")
-        
-        # To Account Entry
-        tk.Label(win, text="To Account Number:").pack(pady=5)
-        to_acc_entry = tk.Entry(win, width=20, font=("Arial", 12))
-        to_acc_entry.pack(pady=5)
-        to_acc_entry.insert(0, "ACC002")  # Default for testing
-        
-        # Amount Entry
-        tk.Label(win, text="Amount to transfer:").pack(pady=5)
-        amount_entry = tk.Entry(win, width=20, font=("Arial", 12))
-        amount_entry.pack(pady=5)
-        
-        # Description
-        tk.Label(win, text="Description:").pack(pady=5)
-        desc_entry = tk.Entry(win, width=30)
-        desc_entry.pack(pady=5)
-        desc_entry.insert(0, "Funds transfer")
-        
-        def transfer_action():
-            try:
-                to_account = to_acc_entry.get()
-                amount = float(amount_entry.get())
-                description = desc_entry.get()
-                
-                # Validate account format
-                if not re.match(r'^ACC\d{3}$', to_account):
-                    messagebox.showerror("Error", "Invalid account number format (use ACC001 format)")
-                    return
-                
-                if amount <= 0:
-                    messagebox.showerror("Error", "Amount must be positive!")
-                    return
-                
-                # In real app, you'd check if destination account exists
-                # For now, simulate transfer
-                success, msg = self.current_account.withdraw(amount, f"Transfer to {to_account}", "Online Transfer")
-                
-                if success:
-                    messagebox.showinfo("Success", 
-                        f"Transfer completed!\n\n"
-                        f"Amount: ${amount:.2f}\n"
-                        f"From: {self.current_account.account_number}\n"
-                        f"To: {to_account}\n"
-                        f"Reference: {msg}")
-                    win.destroy()
-                    self.show_main_menu()
-                else:
-                    messagebox.showerror("Error", msg)
-                    
-            except ValueError:
-                messagebox.showerror("Error", "Enter a valid amount")
-        
-        button_frame = tk.Frame(win)
-        button_frame.pack(pady=15)
-        
-        tk.Button(button_frame, text="Transfer", command=transfer_action, bg="lightblue", width=15).pack(side=tk.LEFT, padx=5)
-        tk.Button(button_frame, text="Cancel", command=win.destroy, width=15).pack(side=tk.LEFT, padx=5)
-    
     # ---------------- SHOW BALANCE ----------------
     def show_balance(self):
         messagebox.showinfo("Account Balance", 
             f"Account: {self.current_account.account_number}\n"
             f"Holder: {self.current_account.account_holder}\n"
-            f"Current Balance: ${self.current_account.get_balance():.2f}\n"
-            f"Available Balance: ${self.current_account.get_balance():.2f}")
+            f"Current Balance: ${self.current_account.get_balance():.2f}")
     
     # ---------------- TRANSACTION HISTORY ----------------
     def show_transactions(self):
